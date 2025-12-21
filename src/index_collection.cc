@@ -132,9 +132,9 @@ std::shared_ptr<vroom::index> make_delimited_index(
     const size_t num_threads,
     const bool progress) {
 
-  auto standardise_one_path = cpp11::package("vroom")["standardise_one_path"];
+  auto connection_or_filepath = cpp11::package("vroom")["connection_or_filepath"];
 
-  auto x = standardise_one_path(in);
+  auto x = connection_or_filepath(in);
 
   bool is_connection = TYPEOF(x) != STRSXP;
 
@@ -185,8 +185,8 @@ void check_column_consistency(
     std::stringstream ss;
     ss << "Files must all have " << first->num_columns()
        << " columns:\n"
-          "* File "
-       << i + 1 << " has " << check->num_columns() << " columns";
+          "i File "
+       << i + 1 << " has " << check->num_columns() << " columns.";
 
     cpp11::stop("%s", ss.str().c_str());
   }
@@ -292,9 +292,9 @@ std::shared_ptr<vroom::index> make_fixed_width_index(
     const size_t n_max,
     const bool progress) {
 
-  auto standardise_one_path = cpp11::package("vroom")["standardise_one_path"];
+  auto connection_or_filepath = cpp11::package("vroom")["connection_or_filepath"];
 
-  auto x = standardise_one_path(in);
+  auto x = connection_or_filepath(in);
 
   bool is_connection = TYPEOF(x) != STRSXP;
 

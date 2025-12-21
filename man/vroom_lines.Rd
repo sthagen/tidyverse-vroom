@@ -23,7 +23,7 @@ containing multiple filepaths or a list containing multiple connections.
 
 Files ending in \code{.gz}, \code{.bz2}, \code{.xz}, or \code{.zip} will be automatically
 uncompressed. Files starting with \verb{http://}, \verb{https://}, \verb{ftp://}, or
-\verb{ftps://} will be automatically downloaded. Remote gz files can also be
+\verb{ftps://} will be automatically downloaded. Remote \code{.gz} files can also be
 automatically downloaded and decompressed.
 
 Literal data is most useful for examples and tests. To be recognised as
@@ -56,9 +56,9 @@ vectors. If your data contains newlines within fields the parser will
 automatically be forced to use a single thread only.}
 
 \item{progress}{Display a progress bar? By default it will only display
-in an interactive session and not while knitting a document. The automatic
-progress bar can be disabled by setting option \code{readr.show_progress} to
-\code{FALSE}.}
+in an interactive session and not while executing in an RStudio notebook
+chunk. The display of the progress bar can be disabled by setting the
+environment variable \code{VROOM_SHOW_PROGRESS} to \code{"false"}.}
 }
 \description{
 \code{vroom_lines()} is similar to \code{readLines()}, however it reads the lines

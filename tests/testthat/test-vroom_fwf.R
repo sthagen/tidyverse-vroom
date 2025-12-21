@@ -235,9 +235,28 @@ test_that("fwf_cols produces correct fwf_positions object with elements of lengt
 })
 
 
-test_that("fwf_cols throws error when arguments are not length 1 or 2", {
-  expect_error(fwf_cols(a = 1:3, b = 4:5))
-  expect_error(fwf_cols(a = c(), b = 4:5))
+test_that("fwf_cols errors when arguments have different shapes", {
+  expect_snapshot(
+    fwf_cols(a = 10, b = c(11, 15)),
+    error = TRUE
+  )
+
+  expect_snapshot(
+    fwf_cols(a = 1:3, b = 4:5),
+    error = TRUE
+  )
+})
+
+test_that("fwf_cols errors with invalid number of values", {
+  expect_snapshot(
+    fwf_cols(a = 1:4, b = 5:8),
+    error = TRUE
+  )
+
+  expect_snapshot(
+    fwf_cols(a = c(), b = c()),
+    error = TRUE
+  )
 })
 
 test_that("fwf_cols works with unnamed columns", {
@@ -255,6 +274,13 @@ test_that("fwf_cols works with unnamed columns", {
 
 # fwf_positions ---------------------------------------------------------------
 
+test_that("fwf_positions errors when start and end have different lengths", {
+  expect_snapshot(
+    fwf_positions(c(1, 5, 10), c(4, 9)),
+    error = TRUE
+  )
+})
+
 test_that("fwf_positions always returns col_names as character (#797)", {
   begin <- c(1, 2, 4, 8)
   end <- c(1, 3, 7, 15)
@@ -269,7 +295,15 @@ test_that("fwf_positions always returns col_names as character (#797)", {
   expect_type(info$col_names, "character")
 })
 
-# Robustness
+# https://github.com/tidyverse/readr/issues/1544
+test_that("fwf_positions() errors for start position of 0", {
+  expect_snapshot(
+    fwf_positions(c(0, 4), c(3, 7)),
+    error = TRUE
+  )
+})
+
+# Robustness ----------------------------------------------------------------
 
 test_that("vroom_fwf() is robust to improper inputs", {
   expect_error_free(
@@ -336,9 +370,9 @@ test_that("Errors if begin is greater than end", {
     col_names = c("foo", "bar", "baz")
   )
 
-  expect_error(
+  expect_snapshot(
     vroom_fwf(I("1  2  3\n"), positions, col_types = list()),
-    "`col_positions` must have begin less than end"
+    error = TRUE
   )
 })
 
@@ -419,6 +453,24 @@ test_that("vroom_fwf respects n_max when reading from a connection", {
   )
 
   expect_equal(dim(out5), c(1, 2))
+})
+
+test_that("vroom_fwf(n_max = 0) works with connection", {
+  f <- withr::local_tempfile(fileext = ".gz")
+  con <- gzfile(f, "w")
+  writeLines(c("abcdef", "ghijkl"), con)
+  close(con)
+
+  result <- vroom_fwf(
+    f,
+    col_positions = fwf_widths(c(2, 2, 2), c("a", "b", "c")),
+    n_max = 0
+  )
+
+  expect_equal(
+    result,
+    tibble::tibble(a = character(), b = character(), c = character())
+  )
 })
 
 test_that("vroom_fwf works when skip_empty_rows is false (https://github.com/tidyverse/readr/issues/1211)", {

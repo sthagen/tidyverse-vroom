@@ -37,11 +37,9 @@ test_that("reading from connection is consistent with reading directly from a fi
 })
 
 test_that("vroom errors when the connection buffer is too small", {
-  withr::with_envvar(c("VROOM_CONNECTION_SIZE" = 32), {
-    expect_error(
-      vroom(file(vroom_example("mtcars.csv")), col_types = list()),
-      "not large enough"
-    )
+  withr::local_envvar(c("VROOM_CONNECTION_SIZE" = 32))
+  expect_snapshot(error = TRUE, {
+    vroom(file(vroom_example("mtcars.csv")), col_types = list())
   })
 })
 
@@ -86,4 +84,73 @@ test_that("vroom works with windows newlines and a connection size that lies dir
     x <- vroom(file(tf), col_types = "cc")
   })
   expect_equal(x[[1]], c("a", "e"))
+})
+
+# https://github.com/tidyverse/vroom/issues/488
+test_that("vroom() doesn't leak a connection when opening fails (bad URL)", {
+  skip_if_offline()
+  connections_before <- showConnections(all = TRUE)
+
+  # Try to read from a bad URL (should fail with 404)
+  bad_url <- "https://cloud.r-project.org/CRAN_mirrorsZ.csv"
+  # Not using snapshots, because not our error or warning
+  expect_error(
+    expect_warning(
+      vroom(bad_url, show_col_types = FALSE)
+    ),
+    "cannot open"
+  )
+
+  connections_after <- showConnections(all = TRUE)
+  expect_equal(nrow(connections_before), nrow(connections_after))
+})
+
+test_that("vroom_fwf() doesn't leak a connection when opening fails (permission denied)", {
+  skip_on_os("windows")
+
+  tfile <- withr::local_tempfile(
+    lines = c("col1  col2  col3", "val1  val2  val3"),
+    pattern = "no-permissions-",
+    fileext = ".txt"
+  )
+  Sys.chmod(tfile, mode = "000") # Remove all permissions
+  connections_before <- showConnections(all = TRUE)
+
+  # Not using snapshots, because not our error or warning
+  expect_error(
+    expect_warning(
+      vroom_fwf(file(tfile), fwf_widths(c(6, 6, 6)), show_col_types = FALSE)
+    ),
+    "cannot open"
+  )
+
+  connections_after <- showConnections(all = TRUE)
+  expect_equal(nrow(connections_before), nrow(connections_after))
+})
+
+test_that("reading no data, from a connection", {
+  skip_if_offline()
+  # inspired by:
+  # https://github.com/tidyverse/vroom/issues/539
+  # remote compressed file with n_max = 0 and explicit col_names
+  expect_equal(
+    vroom(
+      "https://vroom.tidyverse.org/mtcars.csv.gz",
+      col_names = c("a", "b", "c"),
+      n_max = 0,
+      show_col_types = FALSE
+    ),
+    tibble::tibble(a = character(), b = character(), c = character())
+  )
+
+  # remote file without extension - tests default switch case
+  expect_equal(
+    vroom(
+      "https://vroom.tidyverse.org/mtcars",
+      col_names = c("a", "b", "c"),
+      n_max = 0,
+      show_col_types = FALSE
+    ),
+    tibble::tibble(a = character(), b = character(), c = character())
+  )
 })

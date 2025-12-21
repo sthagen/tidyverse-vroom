@@ -207,16 +207,16 @@ test_that("can promote vroom parse warning to error", {
     x$a[1]
   }
 
-  expect_error(
-    # This fails hard if we unwind protect the warning (aborts RStudio)
-    # - Try to throw error after catching the warning
+  # This fails hard if we unwind protect the warning (aborts RStudio)
+  # - Try to throw error after catching the warning
+  expect_snapshot(error = TRUE, {
     withCallingHandlers(
       expr = make_warning(),
       vroom_parse_issue = function(cnd) {
         abort("oh no")
       }
     )
-  )
+  })
 })
 
 test_that("emits an error message if provided incorrect input", {
@@ -238,7 +238,7 @@ test_that("problems are correct even if print is first encounter", {
     show_col_types = FALSE
   )
 
-  print(foo)
+  expect_output(expect_warning(print(foo), class = "vroom_parse_issue"))
 
   probs <- problems(foo)
   expect_equal(probs$row, c(3, 5))
@@ -252,7 +252,7 @@ test_that("problems are correct even if print is first encounter", {
     show_col_types = FALSE
   )
 
-  print(foo)
+  expect_output(expect_warning(print(foo), class = "vroom_parse_issue"))
 
   probs <- problems(foo)
   expect_equal(probs$row, c(2, 4))

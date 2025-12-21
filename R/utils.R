@@ -46,6 +46,7 @@ deparse2 <- function(expr, ..., sep = "\n") {
 is_syntactic <- function(x) make.names(x) == x
 
 # Conditionally exported in zzz.R
+#' @noRd
 # @export
 compare.spec_tbl_df <- function(x, y, ...) {
   attr(x, "spec") <- NULL
@@ -58,6 +59,7 @@ compare.spec_tbl_df <- function(x, y, ...) {
 }
 
 # Conditionally exported in zzz.R
+#' @noRd
 # @export
 compare_proxy.spec_tbl_df <- function(x, path) {
   attr(x, "spec") <- NULL
@@ -72,6 +74,7 @@ compare_proxy.spec_tbl_df <- function(x, path) {
 }
 
 # Conditionally exported in zzz.R
+#' @noRd
 # @export
 as_tibble.spec_tbl_df <- function(x, ...) {
   attr(x, "spec") <- NULL
@@ -81,6 +84,7 @@ as_tibble.spec_tbl_df <- function(x, ...) {
 }
 
 # Conditionally exported in zzz.R
+#' @noRd
 # @export
 all.equal.spec_tbl_df <- function(target, current, ...) {
   attr(target, "spec") <- NULL
@@ -93,6 +97,7 @@ all.equal.spec_tbl_df <- function(target, current, ...) {
 }
 
 # Conditionally exported in zzz.R
+#' @noRd
 # @export
 as.data.frame.spec_tbl_df <- function(x, ...) {
   attr(x, "spec") <- NULL
@@ -128,4 +133,16 @@ utctime <- function(year, month, day, hour, min, sec, psec) {
     as.integer(sec),
     as.numeric(psec)
   )
+}
+
+check_length <- function(x, n, ..., arg = caller_arg(x), call = caller_env()) {
+  if (length(x) != n) {
+    cli::cli_abort(
+      "{.arg {arg}} must have length {n}, not {length(x)}.",
+      ...,
+      call = call,
+      arg = arg
+    )
+  }
+  invisible(NULL)
 }

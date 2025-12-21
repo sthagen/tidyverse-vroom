@@ -6,7 +6,7 @@
 #'
 #'   Files ending in `.gz`, `.bz2`, `.xz`, or `.zip` will be automatically
 #'   uncompressed. Files starting with `http://`, `https://`, `ftp://`, or
-#'   `ftps://` will be automatically downloaded. Remote gz files can also be
+#'   `ftps://` will be automatically downloaded. Remote `.gz` files can also be
 #'   automatically downloaded and decompressed.
 #'
 #'   Literal data is most useful for examples and tests. To be recognised as
@@ -32,10 +32,10 @@
 #' @param col_types One of `NULL`, a [cols()] specification, or
 #'   a string.
 #'
-#'   If `NULL`, all column types will be imputed from `guess_max` rows
-#'   on the input interspersed throughout the file. This is convenient (and
-#'   fast), but not robust. If the imputation fails, you'll need to increase
-#'   the `guess_max` or supply the correct types yourself.
+#'   If `NULL`, all column types will be inferred from `guess_max` rows
+#'   of the input, interspersed throughout the file. This is convenient (and
+#'   fast), but not robust. If the guessed types are wrong, you'll need to
+#'   increase `guess_max` or supply the correct types yourself.
 #'
 #'   Column specifications created by [list()] or [cols()] must contain
 #'   one column specification for each column. If you only want to read a
@@ -55,12 +55,13 @@
 #' - ? = guess
 #' - _ or - = skip
 #'
-#'    By default, reading a file without a column specification will print a
-#'    message showing what `readr` guessed they were. To remove this message,
-#'    set `show_col_types = FALSE` or set `options(readr.show_col_types = FALSE)`.
+#' By default, reading a file without a column specification will print a
+#' message showing the guessed types. To suppress this message, set
+#' `show_col_types = FALSE`.
 #' @param id Either a string or 'NULL'. If a string, the output will contain a
-#'   variable with that name with the filename(s) as the value. If 'NULL', the
-#'   default, no variable will be created.
+#'   column with that name with the filename(s) as the value, i.e. this column
+#'   effectively tells you the source of each row. If 'NULL' (the default), no
+#'   such column will be created.
 #' @param skip Number of lines to skip before reading data. If `comment` is
 #'   supplied any commented lines are ignored _after_ skipping.
 #' @param n_max Maximum number of lines to read.
@@ -101,21 +102,23 @@
 #'   vectors. If your data contains newlines within fields the parser will
 #'   automatically be forced to use a single thread only.
 #' @param progress Display a progress bar? By default it will only display
-#'   in an interactive session and not while knitting a document. The automatic
-#'   progress bar can be disabled by setting option `readr.show_progress` to
-#'   `FALSE`.
+#'   in an interactive session and not while executing in an RStudio notebook
+#'   chunk. The display of the progress bar can be disabled by setting the
+#'   environment variable `VROOM_SHOW_PROGRESS` to `"false"`.
 #' @param show_col_types Control showing the column specifications. If `TRUE`
-#'   column specifications are always show, if `FALSE` they are never shown. If
-#'   `NULL` (the default) they are shown only if an explicit specification is not
-#'   given to `col_types`.
+#'   column specifications are always shown, if `FALSE` they are never shown. If
+#'   `NULL` (the default), they are shown only if an explicit specification is
+#'   not given in `col_types`, i.e. if the types have been guessed.
 #' @param .name_repair Handling of column names. The default behaviour is to
 #'   ensure column names are `"unique"`. Various repair strategies are
 #'   supported:
 #'   * `"minimal"`: No name repair or checks, beyond basic existence of names.
 #'   * `"unique"` (default value): Make sure names are unique and not empty.
-#'   * `"check_unique"`: no name repair, but check they are `unique`.
+#'   * `"check_unique"`: No name repair, but check they are `unique`.
+#'   * `"unique_quiet"`: Repair with the `unique` strategy, quietly.
 #'   * `"universal"`: Make the names `unique` and syntactic.
-#'   * A function: apply custom name repair (e.g., `name_repair = make.names`
+#'   * `"universal_quiet"`: Repair with the `universal` strategy, quietly.
+#'   * A function: Apply custom name repair (e.g., `name_repair = make.names`
 #'     for names in the style of base R).
 #'   * A purrr-style anonymous function, see [rlang::as_function()].
 #'
@@ -401,7 +404,8 @@ pb_write_format <- function(unused) {
 }
 
 # Guess delimiter by splitting every line by each delimiter and choosing the
-# delimiter which splits the lines into the highest number of consistent fields
+# delimiter which splits the lines into the highest number of consistent fields.
+# This looks like dead code on the R side, but it's called from C++.
 guess_delim <- function(lines, delims = c(",", "\t", " ", "|", ":", ";")) {
   if (length(lines) == 0) {
     return("")
@@ -436,15 +440,10 @@ guess_delim <- function(lines, delims = c(",", "\t", " ", "|", ":", ";")) {
     }
   }
   if (top_idx == 0) {
-    stop(
-      glue::glue(
-        '
-        Could not guess the delimiter.\n
-        {silver("Use `vroom(delim =)` to specify one explicitly.")}
-        '
-      ),
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "Could not guess the delimiter.",
+      "i" = "Use {.code vroom(delim =)} to explicitly specify the delimiter."
+    ))
   }
 
   delims[[top_idx]]

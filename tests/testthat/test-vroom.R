@@ -14,6 +14,13 @@ test_that("vroom can read a csv", {
   )
 })
 
+test_that("vroom errors informatively when it cannot guess delimiter", {
+  expect_snapshot(
+    vroom(I("foo\nbar\nbaz\n"), col_types = list()),
+    error = TRUE
+  )
+})
+
 test_that("vroom guesses columns with NAs", {
   test_vroom(
     "a,b,c\nNA,2,3\n4,5,6\n",
@@ -421,15 +428,27 @@ test_that("n_max works with connections files", {
     c(0, 12)
   )
 
-  # If you don't read the header or any rows it must be empty
+  # Zero rows with explicit column names should not error
+  # This used to error with "! negative length vectors are not allowed"
   expect_equal(
-    dim(vroom(
+    vroom(
+      vroom_example("mtcars.csv.gz"),
+      col_names = c("a", "b", "c"),
+      n_max = 0,
+      col_types = list()
+    ),
+    tibble::tibble(a = character(), b = character(), c = character())
+  )
+
+  # If you don't read any rows or read/provide the header, result is empty
+  expect_equal(
+    vroom(
       vroom_example("mtcars.csv.gz"),
       n_max = 0,
       col_names = FALSE,
       col_types = list()
-    )),
-    c(0, 0)
+    ),
+    tibble::tibble()
   )
 })
 
@@ -592,14 +611,6 @@ test_that("vroom can read files with no trailing newline", {
   )
 })
 
-test_that("Missing files error with a nice error message", {
-  f <- tempfile()
-  expect_error(vroom(f, col_types = list()), "does not exist")
-  expect_error(
-    vroom("foo", col_types = list()),
-    "does not exist in current working directory"
-  )
-})
 
 test_that("Can return the spec object", {
   x <- vroom(I("foo,bar\n1,c\n"), col_types = list())

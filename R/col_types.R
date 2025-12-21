@@ -79,16 +79,41 @@ cols_only <- function(...) {
 
 # col_spec ----------------------------------------------------------------
 
-col_spec <- function(col_types, default = col_guess(), delim) {
-  stopifnot(is.list(col_types))
-  stopifnot(is.collector(default))
+col_spec <- function(
+  col_types,
+  default = col_guess(),
+  delim,
+  call = caller_env()
+) {
+  if (!is.list(col_types)) {
+    cli::cli_abort(
+      "{.arg col_types} must be a column specification like that created with {.fun cols} or {.fun cols_only}, not {obj_type_friendly(col_types)}.",
+      call = call
+    )
+  }
+
+  hint <- "Column specifications must be created with the {.code col_*()} functions or their abbreviated character names."
+
+  if (!is.collector(default)) {
+    cli::cli_abort(
+      c(
+        hint,
+        "x" = "Bad {.arg .default} specification."
+      ),
+      call = call
+    )
+  }
 
   is_collector <- vapply(col_types, is.collector, logical(1))
   if (any(!is_collector)) {
-    stop(
-      "Some `col_types` are not S3 collector objects: ",
-      paste(which(!is_collector), collapse = ", "),
-      call. = FALSE
+    # the as.character() is favorable for cli pluralization
+    bad_idx <- as.character(which(!is_collector))
+    cli::cli_abort(
+      c(
+        hint,
+        "x" = "Bad specification{?s} at position{?s}: {bad_idx}."
+      ),
+      call = call
     )
   }
 
@@ -114,28 +139,28 @@ is.col_spec <- function(x) inherits(x, "col_spec")
 #' @examples
 #' as.col_spec("cccnnn")
 #' @export
-as.col_spec <- function(x) UseMethod("as.col_spec")
+as.col_spec <- function(x, call = caller_env()) UseMethod("as.col_spec")
 
 #' @export
-as.col_spec.character <- function(x) {
+as.col_spec.character <- function(x, call = caller_env()) {
   if (is_named(x)) {
-    return(as.col_spec(as.list(x)))
+    return(as.col_spec(as.list(x), call = call))
   }
   letters <- strsplit(x, "")[[1]]
-  col_spec(lapply(letters, col_concise), col_guess(), delim = NULL)
+  col_spec(lapply(letters, col_concise), col_guess(), delim = NULL, call = call)
 }
 
 #' @export
-as.col_spec.NULL <- function(x) {
-  col_spec(list(), delim = NULL)
+as.col_spec.NULL <- function(x, call = caller_env()) {
+  col_spec(list(), delim = NULL, call = call)
 }
 
 #' @export
-as.col_spec.list <- function(x) {
+as.col_spec.list <- function(x, call = caller_env()) {
   do.call(cols, x)
 }
 #' @export
-as.col_spec.col_spec <- function(x) {
+as.col_spec.col_spec <- function(x, call = caller_env()) {
   if (!"delim" %in% names(x)) {
     x["delim"] <- list(NULL)
   }
@@ -143,11 +168,15 @@ as.col_spec.col_spec <- function(x) {
 }
 
 #' @export
-as.col_spec.default <- function(x) {
-  stop("`col_types` must be NULL, a list or a string", call. = FALSE)
+as.col_spec.default <- function(x, call = caller_env()) {
+  cli::cli_abort(
+    "{.arg col_types} must be {.code NULL}, a {.fun cols} specification, or a string, not {obj_type_friendly(x)}.",
+    call = call
+  )
 }
 
 # Conditionally exported in zzz.R
+#' @noRd
 # @export
 print.col_spec <- function(
   x,
@@ -178,6 +207,7 @@ cols_condense <- function(x) {
 }
 
 # Conditionally exported in zzz.R
+#' @noRd
 # @export
 format.col_spec <- function(
   x,
@@ -294,6 +324,7 @@ colourise_cols <- function(cols, colourise = crayon::has_color()) {
 
 # This allows str() on a tibble object to print a little nicer.
 # Conditionally exported in zzz.R
+#' @noRd
 # @export
 str.col_spec <- function(object, ..., indent.str = "") {
   # Split the formatted column spec into strings
@@ -313,7 +344,7 @@ str.col_spec <- function(object, ..., indent.str = "") {
 #' Examine the column specifications for a data frame
 #'
 #' `spec()` extracts the full column specification from a tibble
-#' created by readr.
+#' created by vroom.
 #'
 #' @family parsers
 #' @param x The data frame object to extract from
@@ -326,11 +357,15 @@ str.col_spec <- function(object, ..., indent.str = "") {
 #'
 #' cols_condense(s)
 spec <- function(x) {
-  stopifnot(inherits(x, "tbl_df"))
+  if (!inherits(x, "tbl_df")) {
+    cli::cli_abort(
+      "{.arg x} must be a tibble created by vroom, not {obj_type_friendly(x)}."
+    )
+  }
   attr(x, "spec")
 }
 
-col_concise <- function(x) {
+col_concise <- function(x, call = caller_env()) {
   switch(
     x,
     "_" = ,
@@ -362,7 +397,10 @@ col_concise <- function(x) {
     T = col_datetime(),
     time = ,
     t = col_time(),
-    stop("Unknown shortcut: ", x, call. = FALSE)
+    cli::cli_abort(
+      "Unknown column type specification: {.val {x}}",
+      call = call
+    )
   )
 }
 
@@ -497,7 +535,10 @@ col_types_standardise <- function(
 
 #' Guess the type of a vector
 #'
-#' @inheritParams readr::guess_parser
+#' @param x Character vector of values to parse.
+#' @inheritParams vroom
+#' @param guess_integer If `TRUE`, guess integer types for whole numbers, if
+#'   `FALSE` guess numeric type for all numbers.
 #' @examples
 #'  # Logical vectors
 #'  guess_type(c("FALSE", "TRUE", "F", "T"))
@@ -776,8 +817,13 @@ col_guess <- function(...) {
   collector("guess", ...)
 }
 
-#' @inheritParams readr::col_factor
 #' @rdname cols
+#' @param levels Character vector of the allowed levels. When `levels = NULL`
+#'   (the default), `levels` are discovered from the unique values of the data,
+#'   in the order in which they are encountered.
+#' @param ordered Is it an ordered factor?
+#' @param include_na If `TRUE` and the data contains at least one `NA`, then
+#'   `NA` is included in the levels of the constructed factor.
 #' @export
 col_factor <- function(
   levels = NULL,
@@ -794,8 +840,67 @@ col_factor <- function(
   )
 }
 
-#' @inheritParams readr::col_datetime
 #' @rdname cols
+#' @param format A format specification. If set to "":
+#'   * `col_datetime()` expects ISO8601 datetimes. Here are some examples of
+#'     input that should just work:
+#'     "2024-01-15", "2024-01-15 14:30:00", "2024-01-15T14:30:00Z".
+#'   * `col_date()` uses the `date_format` from [locale()] (default `"%AD"`).
+#'     These inputs should just work: "2024-01-15", "01/15/2024".
+#'   * `col_time()` uses the `time_format` from [locale()] (default `"%AT"`).
+#'     These inputs should just work: "14:30:00", "2:30:00 PM".
+#'
+#'   Unlike [strptime()], the format specification must match the complete
+#'   string. For more details, see below.
+#'
+#' @details
+#' ## Date, time, and datetime formats:
+#' \pkg{vroom} uses a format specification similar to [strptime()].
+#' There are three types of element:
+#'
+#' 1. A conversion specification that is "%" followed by a letter. For example
+#'   "%Y" matches a 4 digit year, "%m", matches a 2 digit month and "%d" matches
+#'   a 2 digit day. Month and day default to `1`, (i.e. Jan 1st) if not present,
+#'   for example if only a year is given.
+#' 2. Whitespace is any sequence of zero or more whitespace characters.
+#' 3. Any other character is matched exactly.
+#'
+#' \pkg{vroom}'s datetime `col_*()` functions recognize the following
+#' specifications:
+#'
+#' * Year: "%Y" (4 digits). "%y" (2 digits); 00-69 -> 2000-2069, 70-99 ->
+#'   1970-1999.
+#' * Month: "%m" (2 digits), "%b" (abbreviated name in current locale), "%B"
+#'   (full name in current locale).
+#' * Day: "%d" (2 digits), "%e" (optional leading space), "%a" (abbreviated
+#'   name in current locale).
+#' * Hour: "%H" or "%I" or "%h", use I (and not H) with AM/PM, use h (and not H)
+#'   if your times represent durations longer than one day.
+#' * Minutes: "%M"
+#' * Seconds: "%S" (integer seconds), "%OS" (partial seconds)
+#' * Time zone: "%Z" (as name, e.g. "America/Chicago"), "%z" (as offset from
+#'   UTC, e.g. "+0800")
+#' * AM/PM indicator: "%p".
+#' * Non-digits: "%." skips one non-digit character, "%+" skips one or more
+#'   non-digit characters, "%*" skips any number of non-digits characters.
+#' * Automatic parsers: "%AD" parses with a flexible YMD parser, "%AT" parses
+#'   with a flexible HMS parser.
+#' * Shortcuts: "%D" = "%m/%d/%y", "%F" = "%Y-%m-%d", "%R" = "%H:%M", "%T" =
+#'   "%H:%M:%S", "%x" = "%y/%m/%d".
+#'
+#' ### ISO8601 support
+#'
+#' Currently, vroom does not support all of ISO8601. Missing features:
+#'
+#' * Week & weekday specifications, e.g. "2013-W05", "2013-W05-10".
+#' * Ordinal dates, e.g. "2013-095".
+#' * Using commas instead of a period for decimal separator.
+#'
+#' The parser is also a little laxer than ISO8601:
+#'
+#' * Dates and times can be separated with a space, not just T.
+#' * Mostly correct specifications like "2009-05-19 14:" and "200912-01" work.
+#'
 #' @export
 col_datetime <- function(format = "", ...) {
   collector("datetime", format = format, ...)
