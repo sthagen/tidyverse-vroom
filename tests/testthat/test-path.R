@@ -37,7 +37,7 @@ test_that("read_file works via https", {
   skip_on_cran()
 
   mt <- vroom(vroom_example("mtcars.csv"), col_types = list())
-  url <- "https://raw.githubusercontent.com/tidyverse/vroom/main/inst/extdata/mtcars.csv"
+  url <- "https://raw.githubusercontent.com/tidyverse/vroom/HEAD/inst/extdata/mtcars.csv"
   expect_equal(vroom(url, col_types = list()), mt)
 })
 
@@ -45,18 +45,41 @@ test_that("vroom works via https on gz file", {
   skip_on_cran()
 
   mt <- vroom(vroom_example("mtcars.csv"), col_types = list())
-  url <- "https://raw.githubusercontent.com/tidyverse/vroom/main/inst/extdata/mtcars.csv.gz"
+  url <- "https://raw.githubusercontent.com/tidyverse/vroom/HEAD/inst/extdata/mtcars.csv.gz"
   expect_equal(vroom(url, col_types = list()), mt)
 })
 
-test_that("vroom errors via https on non-gz file", {
+test_that("vroom works via https on bz2 file", {
   skip_on_cran()
 
-  url <- "https://raw.githubusercontent.com/tidyverse/vroom/main/inst/extdata/mtcars.csv.bz2"
-  expect_snapshot(
-    vroom(url, col_types = list()),
-    error = TRUE
-  )
+  mt <- vroom(vroom_example("mtcars.csv"), col_types = list())
+  url <- "https://raw.githubusercontent.com/tidyverse/vroom/HEAD/inst/extdata/mtcars.csv.bz2"
+  expect_equal(vroom(url, col_types = list()), mt)
+})
+
+test_that("vroom works via https on xz file", {
+  skip_on_cran()
+
+  mt <- vroom(vroom_example("mtcars.csv"), col_types = list())
+  url <- "https://raw.githubusercontent.com/tidyverse/vroom/HEAD/inst/extdata/mtcars.csv.xz"
+  expect_equal(vroom(url, col_types = list()), mt)
+})
+
+test_that("vroom works via https on zip file", {
+  skip_on_cran()
+
+  mt <- vroom(vroom_example("mtcars.csv"), col_types = list())
+  url <- "https://raw.githubusercontent.com/tidyverse/vroom/HEAD/inst/extdata/mtcars.csv.zip"
+  expect_equal(vroom(url, col_types = list()), mt)
+})
+
+# https://github.com/tidyverse/vroom/issues/400
+test_that("vroom works via https on concatenated gz file", {
+  skip_on_cran()
+
+  mt <- vroom(vroom_example("mtcars.csv"), col_types = list())
+  url <- "https://raw.githubusercontent.com/tidyverse/vroom/HEAD/inst/extdata/mtcars-concatenated.csv.gz"
+  expect_equal(vroom(url, comment = "#", col_types = list()), mt)
 })
 
 test_that("split_path_ext works", {
