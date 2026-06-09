@@ -186,6 +186,10 @@ test_that("can read/write a compressed file with non-ascii characters in path", 
   skip_if_not_installed("archive")
   # https://github.com/r-lib/archive/issues/75
   skip_if(l10n_info()$`Latin-1`)
+  # On Windows with R 4.2, base R's unz() can't locate a zip member whose
+  # name contains non-ASCII characters ("cannot locate file ... in zip file").
+  # The test passes in R 4.6 and no user has ever reported the problem.
+  skip_if(is_windows() && getRversion() < "4.3.0")
 
   make_temp_path <- function(ext) file.path(tempdir(), paste0("d\u00E4t", ext))
 

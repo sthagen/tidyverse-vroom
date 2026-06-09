@@ -50,3 +50,4 @@
 ^scratch\.R$
 ^compile_commands\.json$
 ^maintenance$
+^\.positai$
